@@ -4,11 +4,13 @@ import {rect} from 'cycle-canvas';
 
 export const WIDTH = 500;
 export const HEIGHT = 200;
-const PLAYER_SIZE = 10;
+const PLAYER_WIDTH = 10;
+const PLAYER_HEIGHT = 20;
 const WATER_SIZE = 5;
 const GROUND_JUMP_VELOCITY = -7;
 const AIR_JUMP_VELOCITY = -5;
-const SPEED_LIMIT = 4;
+const WALKING_SPEED_LIMIT = 4;
+const RUNNING_SPEED_LIMIT = 7;
 const GRAVITY = 0.3;
 const AIR_FRICTION = 1 / 1.25;
 const GROUND_FRICTION = 1 / 1.55;
@@ -20,14 +22,15 @@ const makeWater = (x, y) => ({ x, y, width: WATER_SIZE, height: WATER_SIZE });
 const initialWorld = {
   player: {
     x: WIDTH / 2,
-    y: HEIGHT - PLAYER_SIZE,
-    width: PLAYER_SIZE,
-    height: PLAYER_SIZE,
+    y: HEIGHT - PLAYER_HEIGHT,
+    width: PLAYER_WIDTH,
+    height: PLAYER_HEIGHT,
     vx: 0,
     vy: 0,
     ax: 0,
     ay: GRAVITY,
     airJumpCount: 0,
+    speedLimit: WALKING_SPEED_LIMIT,
   },
   waters: [makeWater(0, 0), makeWater(0, HEIGHT - WATER_SIZE), makeWater(WIDTH - 10, 0)],
 };
@@ -37,7 +40,7 @@ const isGrounded = ({ y, height }) => y + height >= HEIGHT;
 const applyFriction = (player) => player.vx * (isGrounded(player) ? GROUND_FRICTION : AIR_FRICTION);
 
 const updatePlayer = (player) => {
-  const vx = Math.min(SPEED_LIMIT, Math.max(-SPEED_LIMIT, applyFriction(player) + player.ax));
+  const vx = Math.min(player.speedLimit, Math.max(-player.speedLimit, applyFriction(player) + player.ax));
   const vy = (isGrounded(player) ? Math.min(0, player.vy) : player.vy) + player.ay;
 
   return {
@@ -81,10 +84,22 @@ const forward = () => (world) => {
   return { ...world, player: updatePlayer({ ...player, ax: PUSH_X }) };
 };
 
+const run = () => (world) => {
+  const { player } = world;
+
+  return { ...world, player: updatePlayer({ ...player, speedLimit: RUNNING_SPEED_LIMIT }) };
+};
+
 const stopVx = () => (world) => {
   const { player } = world;
 
   return { ...world, player: updatePlayer({ ...player, ax: 0 }) };
+};
+
+const stopRun = () => (world) => {
+  const { player } = world;
+
+  return { ...world, player: updatePlayer({ ...player, speedLimit: WALKING_SPEED_LIMIT }) };
 };
 
 const tick = () => (world) => {
@@ -110,8 +125,10 @@ export default ({ animation, key }) => {
   const jumpInput$ = key.down('w');
   const backwardInput$ = key.down('a');
   const forwardInput$ = key.down('d');
+  const runInput$ = key.down('shift');
   const stopBackwardInput$ = key.up('a');
   const stopForwardInput$ = key.up('d');
+  const stopRunInput$ = key.up('shift');
   const vxInput$ = xs.merge(backwardInput$, forwardInput$);
   const releaseVxInput$ = xs.merge(stopBackwardInput$, stopForwardInput$);
   const numVxInput$ = xs.combine(vxInput$.mapTo(1), releaseVxInput$.mapTo(-1))
@@ -124,7 +141,9 @@ export default ({ animation, key }) => {
     jumpInput$.map(jump),
     backwardInput$.map(backward),
     forwardInput$.map(forward),
-    stopVxInput$.map(stopVx)
+    runInput$.map(run),
+    stopVxInput$.map(stopVx),
+    stopRunInput$.map(stopRun)
   );
 
   return {
