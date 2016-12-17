@@ -8,11 +8,12 @@ const PLAYER_SIZE = 10;
 const WATER_SIZE = 5;
 const GROUND_JUMP_VELOCITY = -7;
 const AIR_JUMP_VELOCITY = -5;
-const SPEED_LIMIT = 8;
+const SPEED_LIMIT = 4;
 const GRAVITY = 0.3;
 const AIR_FRICTION = 1 / 1.25;
 const GROUND_FRICTION = 1 / 1.55;
 const PUSH_X = 5;
+const MAX_AIR_JUMP_COUNT = 5;
 
 const makeWater = (x, y) => ({ x, y, width: WATER_SIZE, height: WATER_SIZE });
 
@@ -26,6 +27,7 @@ const initialWorld = {
     vy: 0,
     ax: 0,
     ay: GRAVITY,
+    airJumpCount: 0,
   },
   waters: [makeWater(0, 0), makeWater(0, HEIGHT - WATER_SIZE), makeWater(WIDTH - 10, 0)],
 };
@@ -48,6 +50,7 @@ const updatePlayer = (player) => {
 };
 
 const jumpVy = (player) => {
+  if (player.airJumpCount >= MAX_AIR_JUMP_COUNT) return player.vy;
   if (isGrounded(player)) return GROUND_JUMP_VELOCITY;
   if (player.y > player.height) return AIR_JUMP_VELOCITY;
   return player.vy;
@@ -56,7 +59,14 @@ const jumpVy = (player) => {
 const jump = () => (world) => {
   const { player } = world;
 
-  return { ...world, player: updatePlayer({ ...player, vy: jumpVy(player) }) };
+  return {
+    ...world,
+    player: updatePlayer({
+      ...player,
+      vy: jumpVy(player),
+      airJumpCount: isGrounded(player) ? 0 : player.airJumpCount + 1,
+    }),
+  };
 };
 
 const backward = () => (world) => {
