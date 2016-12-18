@@ -19,11 +19,11 @@ export default ({ animation, key }) => {
   const stopBackwardInput$ = key.up('a');
   const stopForwardInput$ = key.up('d');
   const stopRunInput$ = key.up('shift');
-  const vxInput$ = xs.merge(backwardInput$, forwardInput$);
   const releaseVxInput$ = xs.merge(stopBackwardInput$, stopForwardInput$);
-  const numVxInput$ = xs.combine(vxInput$.mapTo(1), releaseVxInput$.mapTo(-1))
-    .map(([a, b]) => a + b)
-    .filter((n) => n <= 0);
+  const numVxInput$ = 
+    xs.merge(backwardInput$.mapTo(1), forwardInput$.mapTo(1), releaseVxInput$.mapTo(-1))
+      .fold((a, b) => a + b, 0)
+      .filter((n) => n <= 0);
   const stopVxInput$ = numVxInput$.mapTo(releaseVxInput$).flatten();
 
   return xs.merge(

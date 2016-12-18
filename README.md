@@ -4,20 +4,20 @@
 
 ## Gameplay
 
-You are a fern searching for your cactus friend. Travel the desert to save him.
+You are a fern searching for your cactus friend. Traverse the desert to save her.
 
 ### Controls
 
-w - jump
-a - go backward
-s - duck
-d - go forward
+w - jump  
+a - go backward  
+s - duck  
+d - go forward  
 shift - run
 
 Note that duck prevents using the other keys.
 
 ## Authors
-Eva Ogbe
+Eva Ogbe  
 Kevin Glass
 
 ## TODO
