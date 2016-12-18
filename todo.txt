@@ -1,0 +1,2 @@
+refactor game.js into multiple files
+normalize framerate
