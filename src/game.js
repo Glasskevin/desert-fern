@@ -6,6 +6,7 @@ export const WIDTH = 500;
 export const HEIGHT = 200;
 const PLAYER_WIDTH = 10;
 const PLAYER_HEIGHT = 20;
+const DUCKING_PLAYER_HEIGHT = 10;
 const WATER_SIZE = 5;
 const GROUND_JUMP_VELOCITY = -7;
 const AIR_JUMP_VELOCITY = -5;
@@ -14,6 +15,8 @@ const RUNNING_SPEED_LIMIT = 7;
 const GRAVITY = 0.3;
 const AIR_FRICTION = 1 / 1.25;
 const GROUND_FRICTION = 1 / 1.55;
+const DUCKING_AIR_FRICTION = 1 / 1.01;
+const DUCKING_GROUND_FRICTION = 1 / 1.05;
 const PUSH_X = 5;
 const MAX_AIR_JUMP_COUNT = 5;
 
@@ -37,10 +40,19 @@ const initialWorld = {
 
 const isGrounded = ({ y, height }) => y + height >= HEIGHT;
 
-const applyFriction = (player) => player.vx * (isGrounded(player) ? GROUND_FRICTION : AIR_FRICTION);
+const isDucking = ({ height }) => height < PLAYER_HEIGHT;
+
+const getFriction = (player) => {
+  if (isDucking(player)) {
+    return isGrounded(player) ? DUCKING_GROUND_FRICTION : DUCKING_AIR_FRICTION;
+  }
+
+  return isGrounded(player) ? GROUND_FRICTION : AIR_FRICTION;
+};
 
 const updatePlayer = (player) => {
-  const vx = Math.min(player.speedLimit, Math.max(-player.speedLimit, applyFriction(player) + player.ax));
+  const vx = Math.min(player.speedLimit,
+    Math.max(-player.speedLimit, (player.vx  + player.ax) * getFriction(player)));
   const vy = (isGrounded(player) ? Math.min(0, player.vy) : player.vy) + player.ay;
 
   return {
@@ -62,7 +74,7 @@ const jumpVy = (player) => {
 const jump = () => (world) => {
   const { player } = world;
 
-  return {
+  return isDucking(player) ? world : {
     ...world,
     player: updatePlayer({
       ...player,
@@ -72,22 +84,51 @@ const jump = () => (world) => {
   };
 };
 
+const duck = () => (world) => {
+  const { player } = world;
+
+  return {
+    ...world,
+    player: updatePlayer({
+      ...player,
+      y: player.y + player.height - DUCKING_PLAYER_HEIGHT,
+      height: DUCKING_PLAYER_HEIGHT,
+    }),
+  };
+};
+
 const backward = () => (world) => {
   const { player } = world;
 
-  return { ...world, player: updatePlayer({ ...player, ax: -PUSH_X }) };
+  return isDucking(player) ? world : { ...world, player: updatePlayer({ ...player, ax: -PUSH_X }) };
 };
 
 const forward = () => (world) => {
   const { player } = world;
 
-  return { ...world, player: updatePlayer({ ...player, ax: PUSH_X }) };
+  return isDucking(player) ? world : { ...world, player: updatePlayer({ ...player, ax: PUSH_X }) };
 };
 
 const run = () => (world) => {
   const { player } = world;
 
-  return { ...world, player: updatePlayer({ ...player, speedLimit: RUNNING_SPEED_LIMIT }) };
+  return isDucking(player)
+    ? world
+    : { ...world, player: updatePlayer({ ...player, speedLimit: RUNNING_SPEED_LIMIT }) };
+};
+
+const stopDuck = () => (world) => {
+  const { player } = world;
+
+  return {
+    ...world,
+    player: updatePlayer({
+      ...player,
+      y: player.y + player.height - PLAYER_HEIGHT,
+      height: PLAYER_HEIGHT,
+      speedLimit: WALKING_SPEED_LIMIT,
+    }),
+  };
 };
 
 const stopVx = () => (world) => {
@@ -99,7 +140,13 @@ const stopVx = () => (world) => {
 const stopRun = () => (world) => {
   const { player } = world;
 
-  return { ...world, player: updatePlayer({ ...player, speedLimit: WALKING_SPEED_LIMIT }) };
+  return {
+    ...world,
+    player: updatePlayer({
+      ...player,
+      speedLimit: WALKING_SPEED_LIMIT,
+    }),
+  };
 };
 
 const tick = () => (world) => {
@@ -123,9 +170,11 @@ const view = ({ player, waters }) => {
 
 export default ({ animation, key }) => {
   const jumpInput$ = key.down('w');
+  const duckInput$ = key.down('s');
   const backwardInput$ = key.down('a');
   const forwardInput$ = key.down('d');
   const runInput$ = key.down('shift');
+  const stopDuckInput$ = key.up('s');
   const stopBackwardInput$ = key.up('a');
   const stopForwardInput$ = key.up('d');
   const stopRunInput$ = key.up('shift');
@@ -139,9 +188,11 @@ export default ({ animation, key }) => {
   const action$ = xs.merge(
     animation.map(tick),
     jumpInput$.map(jump),
+    duckInput$.map(duck),
     backwardInput$.map(backward),
     forwardInput$.map(forward),
     runInput$.map(run),
+    stopDuckInput$.map(stopDuck),
     stopVxInput$.map(stopVx),
     stopRunInput$.map(stopRun)
   );
